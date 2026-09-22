@@ -1,5 +1,6 @@
 const express = require('express');
 const postsRoutes = require('./routes/postsRoutes');
+const { sequelize } = require('./models'); // <-- Добавили подключение к БД
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,9 +23,17 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
 });
 
-app.listen(PORT, () => {
+// Запуск сервера с проверкой подключения к БД
+app.listen(PORT, async () => {
     console.log(`===========================================`);
     console.log(`Сервер запущен на http://localhost:${PORT}`);
-    console.log(`Архитектура: Routes + Controllers + In-Memory Data`);
+
+    try {
+        await sequelize.authenticate();
+        console.log(' Подключение к PostgreSQL успешно установлено!');
+    } catch (error) {
+        console.error(' Ошибка подключения к базе данных:', error.message);
+    }
+
     console.log(`===========================================`);
 });
