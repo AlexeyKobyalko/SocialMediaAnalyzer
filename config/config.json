@@ -1,17 +1,10 @@
 {
   "development": {
-    "username": "alex",
-    "password": "1234",
-    "database": "social_media_db",
-    "host": "127.0.0.1",
-    "port": 5432,
+    "use_env_variable": "DATABASE_URL",
     "dialect": "postgres"
   },
   "test": {
-    "username": "alex",
-    "password": "1234",
-    "database": "social_media_db_test",
-    "host": "127.0.0.1",
+    "use_env_variable": "DATABASE_URL",
     "dialect": "postgres"
   },
   "production": {

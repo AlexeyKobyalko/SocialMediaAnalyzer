@@ -1,6 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const postsRoutes = require('./routes/postsRoutes');
-const { sequelize } = require('./models'); // <-- Добавили подключение к БД
+const { sequelize } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,7 +24,6 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: "Внутренняя ошибка сервера" });
 });
 
-// Запуск сервера с проверкой подключения к БД
 app.listen(PORT, async () => {
     console.log(`===========================================`);
     console.log(`Сервер запущен на http://localhost:${PORT}`);
