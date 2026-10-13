@@ -1,14 +1,26 @@
 {
   "development": {
-    "use_env_variable": "DATABASE_URL",
+    "username": "alex",
+    "password": "1234",
+    "database": "social_media_db",
+    "host": "127.0.0.1",
+    "port": 5432,
     "dialect": "postgres"
   },
   "test": {
-    "use_env_variable": "DATABASE_URL",
+    "username": "alex",
+    "password": "1234",
+    "database": "social_media_db",
+    "host": "127.0.0.1",
+    "port": 5432,
     "dialect": "postgres"
   },
   "production": {
-    "use_env_variable": "DATABASE_URL",
+    "username": "alex",
+    "password": "1234",
+    "database": "social_media_db",
+    "host": "127.0.0.1",
+    "port": 5432,
     "dialect": "postgres"
   }
 }

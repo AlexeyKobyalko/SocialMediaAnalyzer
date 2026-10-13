@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const postsRoutes = require('./routes/postsRoutes');
+const authRoutes = require('./routes/authRoutes');
 const { sequelize } = require('./models');
 
 const app = express();
@@ -13,6 +14,7 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use('/auth', authRoutes);
 app.use('/posts', postsRoutes);
 
 app.use((req, res) => {
