@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { login, getProfile } from '../api';
+import { login, register, getProfile } from '../api';
 
 function AuthBar({ onAuthChange }) {
     const [currentUser, setCurrentUser] = useState(null);
+    const [isRegisterMode, setIsRegisterMode] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [role, setRole] = useState('admin');
     const [authError, setAuthError] = useState(null);
 
     useEffect(() => {
@@ -23,10 +25,15 @@ function AuthBar({ onAuthChange }) {
         }
     }, []);
 
-    const handleLogin = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setAuthError(null);
+
         try {
+            if (isRegisterMode) {
+                await register({ email, password, role });
+            }
+
             const res = await login({ email, password });
             localStorage.setItem('token', res.data.token);
             setCurrentUser(res.data.user);
@@ -34,7 +41,7 @@ function AuthBar({ onAuthChange }) {
             setPassword('');
             if (onAuthChange) onAuthChange(res.data.user);
         } catch (err) {
-            setAuthError(err.response?.data?.error || 'Ошибка авторизации');
+            setAuthError(err.response?.data?.error || 'Произошла ошибка при аутентификации');
         }
     };
 
@@ -45,37 +52,79 @@ function AuthBar({ onAuthChange }) {
     };
 
     return (
-        <div className="auth-bar">
+        <div className="auth-card">
             {currentUser ? (
-                <div className="auth-logged-in">
-          <span>
-            Вы вошли как: <strong>{currentUser.email}</strong> ({currentUser.role})
-          </span>
-                    <button type="button" className="btn btn-ghost" onClick={handleLogout}>
+                <div className="auth-user-bar">
+                    <div className="auth-user-info">
+                        <span className="user-avatar">{currentUser.email[0].toUpperCase()}</span>
+                        <div>
+                            <p className="user-email">{currentUser.email}</p>
+                            <span className="user-badge">{currentUser.role}</span>
+                        </div>
+                    </div>
+                    <button type="button" className="btn btn-dark-pill" onClick={handleLogout}>
                         Выйти
                     </button>
                 </div>
             ) : (
-                <form className="auth-form" onSubmit={handleLogin}>
-                    <input
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                    />
-                    <input
-                        type="password"
-                        placeholder="Пароль"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                    />
-                    <button type="submit" className="btn btn-primary">
-                        Войти (JWT)
-                    </button>
-                    {authError && <span className="auth-error">{authError}</span>}
-                </form>
+                <div className="auth-box">
+                    <div className="auth-tabs">
+                        <button
+                            type="button"
+                            className={`auth-tab ${!isRegisterMode ? 'active' : ''}`}
+                            onClick={() => {
+                                setIsRegisterMode(false);
+                                setAuthError(null);
+                            }}
+                        >
+                            Вход
+                        </button>
+                        <button
+                            type="button"
+                            className={`auth-tab ${isRegisterMode ? 'active' : ''}`}
+                            onClick={() => {
+                                setIsRegisterMode(true);
+                                setAuthError(null);
+                            }}
+                        >
+                            Регистрация
+                        </button>
+                    </div>
+
+                    <form className="auth-form" onSubmit={handleSubmit}>
+                        <input
+                            type="email"
+                            placeholder="Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="password"
+                            placeholder="Пароль"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+
+                        {isRegisterMode && (
+                            <select
+                                className="auth-select"
+                                value={role}
+                                onChange={(e) => setRole(e.target.value)}
+                            >
+                                <option value="admin">Роль: Администратор (CRUD доступен)</option>
+                                <option value="user">Роль: Обычный пользователь (только чтение)</option>
+                            </select>
+                        )}
+
+                        <button type="submit" className="btn btn-lime">
+                            {isRegisterMode ? 'Создать аккаунт' : 'Войти'}
+                        </button>
+                    </form>
+
+                    {authError && <div className="auth-error-banner">{authError}</div>}
+                </div>
             )}
         </div>
     );

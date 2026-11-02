@@ -7,53 +7,50 @@ function PostFilters({ filters, searchInput, onSearchChange, onChange }) {
     };
 
     return (
-        <div className="filters-wrapper">
-            <div className="search-box">
-                <label>
-                    Поиск по тексту (на сервере с Debounce)
-                    <input
-                        type="text"
-                        className="search-input"
-                        placeholder="Введите ключевое слово для поиска..."
-                        value={searchInput}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                    />
-                </label>
+        <div className="filters-card">
+            <div className="search-wrap">
+                <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Поиск постов на сервере (debounce)..."
+                    value={searchInput}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                />
             </div>
 
-            <div className="post-filters">
-                <label>
-                    Платформа
+            <div className="filters-grid">
+                <div className="filter-item">
+                    <label>Платформа</label>
                     <select name="platform" value={filters.platform} onChange={handleChange}>
-                        <option value="all">Все</option>
+                        <option value="all">Все платформы</option>
                         {PLATFORMS.map((p) => (
                             <option key={p} value={p}>
                                 {p}
                             </option>
                         ))}
                     </select>
-                </label>
+                </div>
 
-                <label>
-                    Тональность
+                <div className="filter-item">
+                    <label>Тональность</label>
                     <select name="sentiment" value={filters.sentiment} onChange={handleChange}>
-                        <option value="all">Все</option>
+                        <option value="all">Любая</option>
                         {SENTIMENTS.map((s) => (
                             <option key={s} value={s}>
                                 {s}
                             </option>
                         ))}
                     </select>
-                </label>
+                </div>
 
-                <label>
-                    Сортировка
+                <div className="filter-item">
+                    <label>Сортировка</label>
                     <select name="sortBy" value={filters.sortBy} onChange={handleChange}>
-                        <option value="id">По ID</option>
+                        <option value="id">По порядку (ID)</option>
                         <option value="likes">По лайкам</option>
                         <option value="views">По просмотрам</option>
                     </select>
-                </label>
+                </div>
             </div>
         </div>
     );

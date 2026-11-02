@@ -53,24 +53,27 @@ function PostList() {
     }, [debouncedSearch, loadPosts]);
 
     useEffect(() => {
-        document.title = `Social Media Analyzer (${posts.length} постов)`;
+        document.title = `SMA Dashboard (${posts.length})`;
     }, [posts.length]);
 
     const stats = useMemo(() => {
         const bySentiment = { positive: 0, neutral: 0, negative: 0 };
         let totalLikes = 0;
+        let totalViews = 0;
 
         for (const post of posts) {
             if (bySentiment[post.sentiment] !== undefined) {
                 bySentiment[post.sentiment] += 1;
             }
             totalLikes += Number(post.likes) || 0;
+            totalViews += Number(post.views) || 0;
         }
 
         return {
             total: posts.length,
             bySentiment,
             totalLikes,
+            totalViews,
         };
     }, [posts]);
 
@@ -140,7 +143,7 @@ function PostList() {
         } catch (err) {
             setPosts((prev) => prev.filter((post) => post.id !== tempId));
             showNotification(
-                err.response?.data?.error || 'Ошибка при добавлении поста. Откат.',
+                err.response?.data?.error || 'Ошибка добавления поста. Откат.',
                 true
             );
         }
@@ -168,29 +171,61 @@ function PostList() {
     };
 
     return (
-        <div className="post-list">
-            <header className="app-header">
-                <h1>Social Media Analyzer</h1>
-                <p>Интеграция с REST API и оптимистичное обновление. Лабораторная №5.</p>
+        <div className="dashboard-container">
+            <header className="brand-header">
+                <div>
+                    <span className="brand-tag">Analytics Hub</span>
+                    <h1 className="brand-title">Social Media Analyzer</h1>
+                </div>
             </header>
 
             <AuthBar onAuthChange={() => loadPosts(debouncedSearch)} />
 
             {actionNotice && (
                 <div
-                    className={`action-banner ${actionNotice.isError ? 'banner-error' : 'banner-success'}`}
+                    className={`toast-banner ${
+                        actionNotice.isError ? 'toast-error' : 'toast-success'
+                    }`}
                 >
                     {actionNotice.message}
                 </div>
             )}
 
-            <section className="stats" aria-label="Статистика">
-                <span>Всего: <strong>{stats.total}</strong></span>
-                <span>Позитивных: <strong>{stats.bySentiment.positive}</strong></span>
-                <span>Нейтральных: <strong>{stats.bySentiment.neutral}</strong></span>
-                <span>Негативных: <strong>{stats.bySentiment.negative}</strong></span>
-                <span>Сумма лайков: <strong>{stats.totalLikes}</strong></span>
-            </section>
+            <div className="stats-row">
+                <div className="stat-card stat-card-lime">
+                    <div className="stat-card-top">
+                        <span className="stat-card-label">Всего публикаций</span>
+                        <span className="stat-pill-badge">Live DB</span>
+                    </div>
+                    <div className="stat-card-value">{stats.total}</div>
+                    <div className="stat-card-sub">
+                        Позитивных: {stats.bySentiment.positive} · Нейтральных:{' '}
+                        {stats.bySentiment.neutral}
+                    </div>
+                </div>
+
+                <div className="stat-card stat-card-emerald">
+                    <div className="stat-card-top">
+                        <span className="stat-card-label">Охват и вовлечение</span>
+                        <span className="stat-pill-badge emerald">Metrics</span>
+                    </div>
+                    <div className="stat-card-value">{stats.totalLikes.toLocaleString()}</div>
+                    <div className="stat-card-sub">
+                        Суммарно лайков · {stats.totalViews.toLocaleString()} просмотров
+                    </div>
+                </div>
+
+                <div className="stat-card stat-card-pink">
+                    <div className="stat-card-top">
+                        <span className="stat-card-label">Негатив / Риски</span>
+                        <span className="stat-pill-badge pink">Alerts</span>
+                    </div>
+                    <div className="stat-card-value">{stats.bySentiment.negative}</div>
+                    <div className="stat-card-sub">
+                        Требуют внимания модератора
+                    </div>
+                </div>
+            </div>
 
             <PostForm
                 editingPost={editingPost}
@@ -206,59 +241,72 @@ function PostList() {
             />
 
             {loading && (
-                <div className="status-box loading-box">
-                    <div className="spinner"></div>
-                    <span>Загрузка данных с сервера...</span>
+                <div className="state-panel loading-state">
+                    <div className="pulse-loader"></div>
+                    <span>Синхронизация с сервером...</span>
                 </div>
             )}
 
             {error && !loading && (
-                <div className="status-box error-box">
+                <div className="state-panel error-state">
                     <p>{error}</p>
                     <button
                         type="button"
-                        className="btn btn-primary"
+                        className="btn btn-lime"
                         onClick={() => loadPosts(debouncedSearch)}
                     >
-                        Повторить
+                        Повторить запрос
                     </button>
                 </div>
             )}
 
             {!loading && !error && (
-                <ul className="posts">
+                <div className="posts-stream">
                     {visiblePosts.length === 0 && (
-                        <li className="posts-empty">Постов не найдено</li>
+                        <div className="posts-empty-card">
+                            Публикаций по выбранным критериям не найдено
+                        </div>
                     )}
+
                     {visiblePosts.map((post) => (
-                        <li key={post.id} className={`post-item sentiment-${post.sentiment}`}>
-                            <div className="post-meta">
-                                <span className="badge platform">{post.platform}</span>
-                                <span className="badge sentiment">{post.sentiment}</span>
-                                <span className="metrics">
-                  likes {post.likes} · views {post.views}
-                </span>
+                        <article
+                            key={post.id}
+                            className={`stream-item sentiment-${post.sentiment}`}
+                        >
+                            <div className="item-header">
+                                <div className="item-badges">
+                                    <span className="pill-badge badge-platform">{post.platform}</span>
+                                    <span className={`pill-badge badge-sentiment-${post.sentiment}`}>
+                    {post.sentiment}
+                  </span>
+                                </div>
+                                <div className="item-metrics">
+                                    <span>♥ {post.likes}</span>
+                                    <span>👁 {post.views}</span>
+                                </div>
                             </div>
-                            <p className="post-text">{post.text}</p>
-                            <div className="post-actions">
+
+                            <p className="item-text">{post.text}</p>
+
+                            <div className="item-actions">
                                 <button
                                     type="button"
-                                    className="btn btn-ghost"
+                                    className="btn btn-action-ghost"
                                     onClick={() => setEditingPost(post)}
                                 >
                                     Редактировать
                                 </button>
                                 <button
                                     type="button"
-                                    className="btn btn-danger"
+                                    className="btn btn-action-danger"
                                     onClick={() => handleDelete(post.id)}
                                 >
                                     Удалить
                                 </button>
                             </div>
-                        </li>
+                        </article>
                     ))}
-                </ul>
+                </div>
             )}
         </div>
     );
