@@ -20,8 +20,6 @@ function PostList({ currentUser }) {
         sortBy: 'id',
     });
 
-    const isAdmin = currentUser?.role === 'admin';
-
     const showNotification = (message, isError = false) => {
         setActionNotice({ message, isError });
         setTimeout(() => {
@@ -93,18 +91,13 @@ function PostList({ currentUser }) {
         result = [...result].sort((a, b) => {
             if (filters.sortBy === 'likes') return b.likes - a.likes;
             if (filters.sortBy === 'views') return b.views - a.views;
-            return a.id - b.id;
+            return (b.id || '').localeCompare(a.id || '');
         });
 
         return result;
     }, [posts, filters]);
 
     const handleSubmit = async (formData) => {
-        if (!isAdmin) {
-            showNotification('Доступ запрещен: требуются права администратора', true);
-            return;
-        }
-
         if (editingPost) {
             const previousPosts = [...posts];
             const targetId = editingPost.id;
@@ -121,7 +114,7 @@ function PostList({ currentUser }) {
                 setPosts((prev) =>
                     prev.map((post) => (post.id === targetId ? response.data : post))
                 );
-                showNotification('Пост успешно обновлен на сервере');
+                showNotification('Пост успешно обновлен в MongoDB');
             } catch (err) {
                 setPosts(previousPosts);
                 showNotification(
@@ -132,10 +125,12 @@ function PostList({ currentUser }) {
             return;
         }
 
-        const tempId = Date.now();
+        const tempId = `temp-${Date.now()}`;
         const optimisticPost = {
             id: tempId,
             ...formData,
+            comments: [],
+            tags: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -146,7 +141,7 @@ function PostList({ currentUser }) {
             setPosts((prev) =>
                 prev.map((post) => (post.id === tempId ? response.data : post))
             );
-            showNotification('Пост успешно создан на сервере');
+            showNotification('Пост успешно создан в MongoDB');
         } catch (err) {
             setPosts((prev) => prev.filter((post) => post.id !== tempId));
             showNotification(
@@ -157,13 +152,7 @@ function PostList({ currentUser }) {
     };
 
     const handleDelete = async (id) => {
-        if (!isAdmin) {
-            showNotification('Доступ запрещен: требуются права администратора', true);
-            return;
-        }
-
         const previousPosts = [...posts];
-        const postToDelete = posts.find((p) => p.id === id);
 
         setPosts((prev) => prev.filter((post) => post.id !== id));
         if (editingPost?.id === id) {
@@ -172,7 +161,7 @@ function PostList({ currentUser }) {
 
         try {
             await deletePost(id);
-            showNotification('Пост успешно удален с сервера');
+            showNotification('Пост успешно удален из MongoDB');
         } catch (err) {
             setPosts(previousPosts);
             showNotification(
@@ -198,7 +187,7 @@ function PostList({ currentUser }) {
                 <div className="stat-card stat-card-lime">
                     <div className="stat-card-top">
                         <span className="stat-card-label">Всего публикаций</span>
-                        <span className="stat-pill-badge">Live DB</span>
+                        <span className="stat-pill-badge">MongoDB Live</span>
                     </div>
                     <div className="stat-card-value">{stats.total}</div>
                     <div className="stat-card-sub">
@@ -232,13 +221,11 @@ function PostList({ currentUser }) {
 
             <AnalyticsCharts posts={posts} />
 
-            {isAdmin && (
-                <PostForm
-                    editingPost={editingPost}
-                    onSubmit={handleSubmit}
-                    onCancel={() => setEditingPost(null)}
-                />
-            )}
+            <PostForm
+                editingPost={editingPost}
+                onSubmit={handleSubmit}
+                onCancel={() => setEditingPost(null)}
+            />
 
             <PostFilters
                 filters={filters}
@@ -250,7 +237,7 @@ function PostList({ currentUser }) {
             {loading && (
                 <div className="state-panel loading-state">
                     <div className="pulse-loader"></div>
-                    <span>Синхронизация с сервером...</span>
+                    <span>Синхронизация с MongoDB...</span>
                 </div>
             )}
 
@@ -284,35 +271,46 @@ function PostList({ currentUser }) {
                                 <div className="item-badges">
                                     <span className="pill-badge badge-platform">{post.platform}</span>
                                     <span className={`pill-badge badge-sentiment-${post.sentiment}`}>
-                    {post.sentiment}
-                  </span>
+                                        {post.sentiment}
+                                    </span>
                                 </div>
                                 <div className="item-metrics">
                                     <span>♥ {post.likes}</span>
                                     <span>👁 {post.views}</span>
+                                    {post.comments && post.comments.length > 0 && (
+                                        <span>💬 {post.comments.length}</span>
+                                    )}
                                 </div>
                             </div>
 
                             <p className="item-text">{post.text}</p>
 
-                            {isAdmin && (
-                                <div className="item-actions">
-                                    <button
-                                        type="button"
-                                        className="btn btn-action-ghost"
-                                        onClick={() => setEditingPost(post)}
-                                    >
-                                        Редактировать
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn btn-action-danger"
-                                        onClick={() => handleDelete(post.id)}
-                                    >
-                                        Удалить
-                                    </button>
+                            {post.tags && post.tags.length > 0 && (
+                                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                                    {post.tags.map((tag, idx) => (
+                                        <span key={idx} style={{ fontSize: '0.75rem', color: '#94a3b8', background: '#0f1115', padding: '0.2rem 0.6rem', borderRadius: '8px' }}>
+                                            #{tag}
+                                        </span>
+                                    ))}
                                 </div>
                             )}
+
+                            <div className="item-actions">
+                                <button
+                                    type="button"
+                                    className="btn btn-action-ghost"
+                                    onClick={() => setEditingPost(post)}
+                                >
+                                    Редактировать
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-action-danger"
+                                    onClick={() => handleDelete(post.id)}
+                                >
+                                    Удалить
+                                </button>
+                            </div>
                         </article>
                     ))}
                 </div>

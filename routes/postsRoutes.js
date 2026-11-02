@@ -6,7 +6,7 @@ const { isAdmin } = require('../middlewares/roleMiddleware');
 
 router.all('/', (req, res, next) => {
     if (req.method === 'QUERY') {
-        return postsController.searchPostsByWord(req, res);
+        return postsController.searchPostsByWord(req, res, next);
     }
     next();
 });
@@ -14,9 +14,11 @@ router.all('/', (req, res, next) => {
 router.get('/', postsController.getAllPosts);
 router.get('/:id', postsController.getPostById);
 
-router.post('/', authMiddleware, isAdmin, postsController.createPost);
-router.put('/:id', authMiddleware, isAdmin, postsController.updatePost);
-router.patch('/:id', authMiddleware, isAdmin, postsController.patchPost);
-router.delete('/:id', authMiddleware, isAdmin, postsController.deletePost);
+router.post('/:id/comments', postsController.addComment);
+
+router.post('/', postsController.createPost);
+router.put('/:id', postsController.updatePost);
+router.patch('/:id', postsController.patchPost);
+router.delete('/:id', postsController.deletePost);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const postsRoutes = require('./routes/postsRoutes');
 const authRoutes = require('./routes/authRoutes');
 const { sequelize } = require('./models');
@@ -33,10 +34,17 @@ app.listen(PORT, async () => {
     console.log(`Сервер запущен на http://localhost:${PORT}`);
 
     try {
+        await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/social_media_db');
+        console.log(' Подключение к MongoDB успешно установлено!');
+    } catch (error) {
+        console.error(' Ошибка подключения к MongoDB:', error.message);
+    }
+
+    try {
         await sequelize.authenticate();
         console.log(' Подключение к PostgreSQL успешно установлено!');
     } catch (error) {
-        console.error(' Ошибка подключения к базе данных:', error.message);
+        console.warn(' PostgreSQL пока не подключен (аутентификация будет недоступна):', error.message);
     }
 
     console.log(`===========================================`);
