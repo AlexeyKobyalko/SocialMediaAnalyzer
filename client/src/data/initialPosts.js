@@ -1,7 +1,3 @@
-/**
- * Начальные (моковые) посты — форма совместима с моделью Post на бэкенде
- * (text, platform, sentiment, likes, views) для лёгкого перехода к API в лабе 5.
- */
 export const INITIAL_POSTS = [
   {
     id: 1,

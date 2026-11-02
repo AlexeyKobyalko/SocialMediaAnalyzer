@@ -1,12 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-
-/**
- * Пользовательский хук: синхронизация состояния с localStorage.
- * Загрузка — ленивый инициализатор useState (при монтировании).
- * Сохранение — с debounce (по умолчанию 500 мс), cleanup отменяет таймер.
- *
- * В лабе 5 этот хук можно заменить на работу с REST API.
- */
 export function useLocalStorage(key, initialValue, debounceMs = 500) {
   const [value, setValue] = useState(() => {
     try {
@@ -14,7 +6,6 @@ export function useLocalStorage(key, initialValue, debounceMs = 500) {
       if (raw === null) {
         const initial =
           typeof initialValue === 'function' ? initialValue() : initialValue;
-        // Сразу кладём начальные данные, чтобы ключ был виден в DevTools
         localStorage.setItem(key, JSON.stringify(initial));
         return initial;
       }
@@ -24,7 +15,6 @@ export function useLocalStorage(key, initialValue, debounceMs = 500) {
     }
   });
 
-  // Пропускаем лишнюю запись сразу после инициализации из localStorage
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -41,7 +31,6 @@ export function useLocalStorage(key, initialValue, debounceMs = 500) {
       }
     }, debounceMs);
 
-    // Cleanup: отмена таймера при новом изменении или размонтировании
     return () => clearTimeout(timerId);
   }, [key, value, debounceMs]);
 

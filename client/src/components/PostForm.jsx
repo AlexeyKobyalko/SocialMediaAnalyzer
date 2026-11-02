@@ -9,10 +9,6 @@ const EMPTY_FORM = {
   views: 0,
 };
 
-/**
- * Контролируемая форма добавления / редактирования поста.
- * Enter в поле текста — submit (горячая клавиша из контрольных вопросов).
- */
 function PostForm({ editingPost, onSubmit, onCancel }) {
   const [form, setForm] = useState(EMPTY_FORM);
 

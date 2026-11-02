@@ -4,11 +4,6 @@ import { INITIAL_POSTS, STORAGE_KEY } from '../data/initialPosts';
 import PostForm from './PostForm';
 import PostFilters from './PostFilters';
 
-/**
- * Главный компонент предметной области: список постов соцсетей.
- * useState — форма, фильтры, редактирование.
- * useLocalStorage — массив постов + debounce-сохранение в localStorage.
- */
 function PostList() {
   const [posts, setPosts] = useLocalStorage(STORAGE_KEY, INITIAL_POSTS, 500);
   const [editingPost, setEditingPost] = useState(null);

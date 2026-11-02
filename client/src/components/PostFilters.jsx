@@ -1,8 +1,4 @@
 import { PLATFORMS, SENTIMENTS } from '../data/initialPosts';
-
-/**
- * Фильтр по platform / sentiment и сортировка по likes / views.
- */
 function PostFilters({ filters, onChange }) {
   const handleChange = (event) => {
     const { name, value } = event.target;
