@@ -1,11 +1,20 @@
 const { Post } = require('../models');
 const { Op } = require('sequelize');
 
-// GET /posts — получение всех постов из базы данных PostgreSQL
 exports.getAllPosts = async (req, res, next) => {
     try {
+        const { search } = req.query;
+        const whereClause = {};
+
+        if (search && typeof search === 'string' && search.trim() !== '') {
+            whereClause.text = {
+                [Op.iLike]: `%${search.trim()}%`
+            };
+        }
+
         const posts = await Post.findAll({
-            order: [['id', 'ASC']] // Сортировка по возрастанию ID
+            where: whereClause,
+            order: [['id', 'ASC']]
         });
         res.status(200).json(posts);
     } catch (error) {
@@ -13,7 +22,6 @@ exports.getAllPosts = async (req, res, next) => {
     }
 };
 
-// QUERY /posts — поиск по ключевому слову в тексте (регистронезависимый поиск Op.iLike в Postgres)
 exports.searchPostsByWord = async (req, res, next) => {
     try {
         const { search } = req.body;
@@ -40,7 +48,6 @@ exports.searchPostsByWord = async (req, res, next) => {
     }
 };
 
-// GET /posts/:id — получение одного поста по первичному ключу (ID)
 exports.getPostById = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -61,7 +68,6 @@ exports.getPostById = async (req, res, next) => {
     }
 };
 
-// POST /posts — добавление нового поста в базу данных
 exports.createPost = async (req, res, next) => {
     try {
         const { text, platform, sentiment = "neutral", likes = 0, views = 0 } = req.body;
@@ -87,7 +93,6 @@ exports.createPost = async (req, res, next) => {
     }
 };
 
-// PUT /posts/:id — полное обновление поста
 exports.updatePost = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -124,7 +129,6 @@ exports.updatePost = async (req, res, next) => {
     }
 };
 
-// PATCH /posts/:id — частичное обновление поста
 exports.patchPost = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -176,7 +180,6 @@ exports.patchPost = async (req, res, next) => {
     }
 };
 
-// DELETE /posts/:id — удаление поста из базы данных
 exports.deletePost = async (req, res, next) => {
     try {
         const id = parseInt(req.params.id, 10);
@@ -191,7 +194,6 @@ exports.deletePost = async (req, res, next) => {
             return res.status(404).json({ error: `Пост с ID ${id} не найден` });
         }
 
-        // Сохраняем объект перед удалением для вывода в ответе
         const deletedPostData = post.toJSON();
         await post.destroy();
 
