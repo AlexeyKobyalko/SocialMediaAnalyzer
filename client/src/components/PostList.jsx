@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchPosts, createPost, updatePost, deletePost } from '../api';
+import AnalyticsCharts from './AnalyticsCharts';
 import PostForm from './PostForm';
 import PostFilters from './PostFilters';
-import AuthBar from './AuthBar';
 
-function PostList() {
+function PostList({ currentUser }) {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,6 +19,8 @@ function PostList() {
         sentiment: 'all',
         sortBy: 'id',
     });
+
+    const isAdmin = currentUser?.role === 'admin';
 
     const showNotification = (message, isError = false) => {
         setActionNotice({ message, isError });
@@ -98,6 +100,11 @@ function PostList() {
     }, [posts, filters]);
 
     const handleSubmit = async (formData) => {
+        if (!isAdmin) {
+            showNotification('Доступ запрещен: требуются права администратора', true);
+            return;
+        }
+
         if (editingPost) {
             const previousPosts = [...posts];
             const targetId = editingPost.id;
@@ -150,6 +157,11 @@ function PostList() {
     };
 
     const handleDelete = async (id) => {
+        if (!isAdmin) {
+            showNotification('Доступ запрещен: требуются права администратора', true);
+            return;
+        }
+
         const previousPosts = [...posts];
         const postToDelete = posts.find((p) => p.id === id);
 
@@ -171,16 +183,7 @@ function PostList() {
     };
 
     return (
-        <div className="dashboard-container">
-            <header className="brand-header">
-                <div>
-                    <span className="brand-tag">Analytics Hub</span>
-                    <h1 className="brand-title">Social Media Analyzer</h1>
-                </div>
-            </header>
-
-            <AuthBar onAuthChange={() => loadPosts(debouncedSearch)} />
-
+        <div className="dashboard-content">
             {actionNotice && (
                 <div
                     className={`toast-banner ${
@@ -227,11 +230,15 @@ function PostList() {
                 </div>
             </div>
 
-            <PostForm
-                editingPost={editingPost}
-                onSubmit={handleSubmit}
-                onCancel={() => setEditingPost(null)}
-            />
+            <AnalyticsCharts posts={posts} />
+
+            {isAdmin && (
+                <PostForm
+                    editingPost={editingPost}
+                    onSubmit={handleSubmit}
+                    onCancel={() => setEditingPost(null)}
+                />
+            )}
 
             <PostFilters
                 filters={filters}
@@ -288,22 +295,24 @@ function PostList() {
 
                             <p className="item-text">{post.text}</p>
 
-                            <div className="item-actions">
-                                <button
-                                    type="button"
-                                    className="btn btn-action-ghost"
-                                    onClick={() => setEditingPost(post)}
-                                >
-                                    Редактировать
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-action-danger"
-                                    onClick={() => handleDelete(post.id)}
-                                >
-                                    Удалить
-                                </button>
-                            </div>
+                            {isAdmin && (
+                                <div className="item-actions">
+                                    <button
+                                        type="button"
+                                        className="btn btn-action-ghost"
+                                        onClick={() => setEditingPost(post)}
+                                    >
+                                        Редактировать
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-action-danger"
+                                        onClick={() => handleDelete(post.id)}
+                                    >
+                                        Удалить
+                                    </button>
+                                </div>
+                            )}
                         </article>
                     ))}
                 </div>
