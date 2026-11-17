@@ -14,11 +14,14 @@ router.all('/', (req, res, next) => {
 router.get('/', postsController.getAllPosts);
 router.get('/:id', postsController.getPostById);
 
-router.post('/:id/comments', postsController.addComment);
+router.post('/', authMiddleware, isAdmin, postsController.createPost);
+router.put('/:id', authMiddleware, isAdmin, postsController.updatePost);
+router.patch('/:id', authMiddleware, isAdmin, postsController.patchPost);
+router.delete('/:id', authMiddleware, isAdmin, postsController.deletePost);
 
-router.post('/', postsController.createPost);
-router.put('/:id', postsController.updatePost);
-router.patch('/:id', postsController.patchPost);
-router.delete('/:id', postsController.deletePost);
+router.post('/:id/comments', authMiddleware, isAdmin, postsController.addComment);
+router.put('/:id/comments/:commentId', authMiddleware, isAdmin, postsController.updateComment);
+router.patch('/:id/comments/:commentId/likes', authMiddleware, isAdmin, postsController.updateCommentLikes);
+router.delete('/:id/comments/:commentId', authMiddleware, isAdmin, postsController.deleteComment);
 
 module.exports = router;

@@ -1,8 +1,25 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchPosts, createPost, updatePost, deletePost } from '../api';
+import {
+    fetchPosts,
+    createPost,
+    updatePost,
+    deletePost,
+    addComment,
+    updateComment,
+    updateCommentLikes,
+    deleteComment,
+} from '../api';
+import { SENTIMENTS } from '../data/initialPosts';
 import AnalyticsCharts from './AnalyticsCharts';
 import PostForm from './PostForm';
 import PostFilters from './PostFilters';
+
+const EMPTY_COMMENT_DRAFT = {
+    author: '',
+    text: '',
+    sentiment: 'neutral',
+    likes: 0,
+};
 
 function PostList({ currentUser }) {
     const [posts, setPosts] = useState([]);
@@ -14,11 +31,17 @@ function PostList({ currentUser }) {
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
     const [editingPost, setEditingPost] = useState(null);
+    const [expandedPosts, setExpandedPosts] = useState({});
+    const [commentDrafts, setCommentDrafts] = useState({});
+    const [editingComment, setEditingComment] = useState(null);
+
     const [filters, setFilters] = useState({
         platform: 'all',
         sentiment: 'all',
         sortBy: 'id',
     });
+
+    const isAdmin = currentUser?.role === 'admin';
 
     const showNotification = (message, isError = false) => {
         setActionNotice({ message, isError });
@@ -97,6 +120,12 @@ function PostList({ currentUser }) {
         return result;
     }, [posts, filters]);
 
+    const replacePostInState = (updatedPost) => {
+        setPosts((prev) =>
+            prev.map((post) => (post.id === updatedPost.id ? updatedPost : post))
+        );
+    };
+
     const handleSubmit = async (formData) => {
         if (editingPost) {
             const previousPosts = [...posts];
@@ -111,9 +140,7 @@ function PostList({ currentUser }) {
 
             try {
                 const response = await updatePost(targetId, formData);
-                setPosts((prev) =>
-                    prev.map((post) => (post.id === targetId ? response.data : post))
-                );
+                replacePostInState(response.data);
                 showNotification('Пост успешно обновлен в MongoDB');
             } catch (err) {
                 setPosts(previousPosts);
@@ -129,8 +156,8 @@ function PostList({ currentUser }) {
         const optimisticPost = {
             id: tempId,
             ...formData,
+            tags: formData.tags || [],
             comments: [],
-            tags: [],
             createdAt: new Date().toISOString(),
         };
 
@@ -166,6 +193,119 @@ function PostList({ currentUser }) {
             setPosts(previousPosts);
             showNotification(
                 err.response?.data?.error || 'Не удалось удалить пост. Откат изменений.',
+                true
+            );
+        }
+    };
+
+    const toggleComments = (postId) => {
+        setExpandedPosts((prev) => ({
+            ...prev,
+            [postId]: !prev[postId],
+        }));
+    };
+
+    const getDraft = (postId) => commentDrafts[postId] || EMPTY_COMMENT_DRAFT;
+
+    const handleDraftChange = (postId, field, value) => {
+        setCommentDrafts((prev) => ({
+            ...prev,
+            [postId]: {
+                ...getDraft(postId),
+                [field]: value,
+            },
+        }));
+    };
+
+    const handleAddComment = async (event, postId) => {
+        event.preventDefault();
+        const draft = getDraft(postId);
+        const text = draft.text.trim();
+        if (!text) return;
+
+        try {
+            const response = await addComment(postId, {
+                author: draft.author.trim() || 'Аноним',
+                text,
+                sentiment: draft.sentiment,
+                likes: Number(draft.likes) || 0,
+            });
+            replacePostInState(response.data.post);
+            setCommentDrafts((prev) => ({
+                ...prev,
+                [postId]: EMPTY_COMMENT_DRAFT,
+            }));
+            showNotification('Комментарий добавлен во вложенный массив MongoDB');
+        } catch (err) {
+            showNotification(
+                err.response?.data?.error || 'Не удалось добавить комментарий',
+                true
+            );
+        }
+    };
+
+    const startEditComment = (postId, comment) => {
+        const commentId = comment._id || comment.id;
+        setEditingComment({
+            postId,
+            commentId,
+            author: comment.author || 'Аноним',
+            text: comment.text || '',
+            sentiment: comment.sentiment || 'neutral',
+            likes: Number(comment.likes) || 0,
+        });
+    };
+
+    const handleSaveComment = async (event) => {
+        event.preventDefault();
+        if (!editingComment || !editingComment.text.trim()) return;
+
+        try {
+            const response = await updateComment(
+                editingComment.postId,
+                editingComment.commentId,
+                {
+                    author: editingComment.author.trim() || 'Аноним',
+                    text: editingComment.text.trim(),
+                    sentiment: editingComment.sentiment,
+                    likes: Math.max(0, Number(editingComment.likes) || 0),
+                }
+            );
+            replacePostInState(response.data.post);
+            setEditingComment(null);
+            showNotification('Комментарий обновлен в MongoDB');
+        } catch (err) {
+            showNotification(
+                err.response?.data?.error || 'Не удалось обновить комментарий',
+                true
+            );
+        }
+    };
+
+    const handleIncrementCommentLikes = async (postId, commentId) => {
+        try {
+            const response = await updateCommentLikes(postId, commentId, { delta: 1 });
+            replacePostInState(response.data.post);
+            showNotification('Счетчик лайков комментария увеличен');
+        } catch (err) {
+            showNotification(
+                err.response?.data?.error || 'Не удалось обновить лайки комментария',
+                true
+            );
+        }
+    };
+
+    const handleDeleteComment = async (postId, commentId) => {
+        try {
+            const response = await deleteComment(postId, commentId);
+            replacePostInState(response.data.post);
+            if (editingComment?.commentId === commentId) {
+                setEditingComment(null);
+            }
+            showNotification('Комментарий удален из вложенного массива');
+        } catch (err) {
+            showNotification(
+                err.response?.data?.error || 'Не удалось удалить комментарий',
                 true
             );
         }
@@ -221,11 +361,13 @@ function PostList({ currentUser }) {
 
             <AnalyticsCharts posts={posts} />
 
-            <PostForm
-                editingPost={editingPost}
-                onSubmit={handleSubmit}
-                onCancel={() => setEditingPost(null)}
-            />
+            {isAdmin && (
+                <PostForm
+                    editingPost={editingPost}
+                    onSubmit={handleSubmit}
+                    onCancel={() => setEditingPost(null)}
+                />
+            )}
 
             <PostFilters
                 filters={filters}
@@ -262,57 +404,273 @@ function PostList({ currentUser }) {
                         </div>
                     )}
 
-                    {visiblePosts.map((post) => (
-                        <article
-                            key={post.id}
-                            className={`stream-item sentiment-${post.sentiment}`}
-                        >
-                            <div className="item-header">
-                                <div className="item-badges">
-                                    <span className="pill-badge badge-platform">{post.platform}</span>
-                                    <span className={`pill-badge badge-sentiment-${post.sentiment}`}>
-                                        {post.sentiment}
-                                    </span>
+                    {visiblePosts.map((post) => {
+                        const comments = post.comments || [];
+                        const isExpanded = Boolean(expandedPosts[post.id]);
+                        const draft = getDraft(post.id);
+
+                        return (
+                            <article
+                                key={post.id}
+                                className={`stream-item sentiment-${post.sentiment}`}
+                            >
+                                <div className="item-header">
+                                    <div className="item-badges">
+                                        <span className="pill-badge badge-platform">{post.platform}</span>
+                                        <span className={`pill-badge badge-sentiment-${post.sentiment}`}>
+                                            {post.sentiment}
+                                        </span>
+                                    </div>
+                                    <div className="item-metrics">
+                                        <span>♥ {post.likes}</span>
+                                        <span>👁 {post.views}</span>
+                                        <span>💬 {comments.length}</span>
+                                    </div>
                                 </div>
-                                <div className="item-metrics">
-                                    <span>♥ {post.likes}</span>
-                                    <span>👁 {post.views}</span>
-                                    {post.comments && post.comments.length > 0 && (
-                                        <span>💬 {post.comments.length}</span>
+
+                                <p className="item-text">{post.text}</p>
+
+                                {post.tags && post.tags.length > 0 && (
+                                    <div className="post-tags-list">
+                                        {post.tags.map((tag, idx) => (
+                                            <span key={idx} className="post-tag-chip">
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="item-actions">
+                                    <button
+                                        type="button"
+                                        className="btn-action-ghost"
+                                        onClick={() => toggleComments(post.id)}
+                                    >
+                                        {isExpanded
+                                            ? `Скрыть комментарии (${comments.length})`
+                                            : `Комментарии (${comments.length})`}
+                                    </button>
+
+                                    {isAdmin && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="btn-action-ghost"
+                                                onClick={() => setEditingPost(post)}
+                                            >
+                                                Редактировать
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn-action-danger"
+                                                onClick={() => handleDelete(post.id)}
+                                            >
+                                                Удалить
+                                            </button>
+                                        </>
                                     )}
                                 </div>
-                            </div>
 
-                            <p className="item-text">{post.text}</p>
+                                {isExpanded && (
+                                    <div className="comments-panel">
+                                        {comments.length === 0 ? (
+                                            <p className="comments-empty">
+                                                Вложенных комментариев пока нет
+                                            </p>
+                                        ) : (
+                                            <div className="comments-list">
+                                                {comments.map((comment) => {
+                                                    const commentId = comment._id || comment.id;
+                                                    const isEditingThis =
+                                                        editingComment?.postId === post.id &&
+                                                        editingComment?.commentId === commentId;
 
-                            {post.tags && post.tags.length > 0 && (
-                                <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                                    {post.tags.map((tag, idx) => (
-                                        <span key={idx} style={{ fontSize: '0.75rem', color: '#94a3b8', background: '#0f1115', padding: '0.2rem 0.6rem', borderRadius: '8px' }}>
-                                            #{tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                                                    return (
+                                                        <div key={commentId} className="comment-card">
+                                                            {isEditingThis ? (
+                                                                <form
+                                                                    className="comment-edit-form"
+                                                                    onSubmit={handleSaveComment}
+                                                                >
+                                                                    <div className="comment-form-row">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editingComment.author}
+                                                                            onChange={(e) =>
+                                                                                setEditingComment((prev) => ({
+                                                                                    ...prev,
+                                                                                    author: e.target.value,
+                                                                                }))
+                                                                            }
+                                                                            placeholder="Автор"
+                                                                        />
+                                                                        <select
+                                                                            value={editingComment.sentiment}
+                                                                            onChange={(e) =>
+                                                                                setEditingComment((prev) => ({
+                                                                                    ...prev,
+                                                                                    sentiment: e.target.value,
+                                                                                }))
+                                                                            }
+                                                                        >
+                                                                            {SENTIMENTS.map((s) => (
+                                                                                <option key={s} value={s}>
+                                                                                    {s}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <input
+                                                                            type="number"
+                                                                            min="0"
+                                                                            value={editingComment.likes}
+                                                                            onChange={(e) =>
+                                                                                setEditingComment((prev) => ({
+                                                                                    ...prev,
+                                                                                    likes: Number(e.target.value) || 0,
+                                                                                }))
+                                                                            }
+                                                                            title="Лайки комментария"
+                                                                        />
+                                                                    </div>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editingComment.text}
+                                                                        onChange={(e) =>
+                                                                            setEditingComment((prev) => ({
+                                                                                ...prev,
+                                                                                text: e.target.value,
+                                                                            }))
+                                                                        }
+                                                                        placeholder="Текст комментария"
+                                                                        required
+                                                                    />
+                                                                    <div className="comment-actions">
+                                                                        <button type="submit" className="btn-mini btn-mini-lime">
+                                                                            Сохранить
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="btn-mini"
+                                                                            onClick={() => setEditingComment(null)}
+                                                                        >
+                                                                            Отмена
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="comment-header">
+                                                                        <div className="comment-meta">
+                                                                            <span className="comment-author">
+                                                                                {comment.author || 'Аноним'}
+                                                                            </span>
+                                                                            <span
+                                                                                className={`pill-badge badge-sentiment-${comment.sentiment || 'neutral'}`}
+                                                                            >
+                                                                                {comment.sentiment || 'neutral'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="comment-likes-stat">
+                                                                            ♥ {comment.likes || 0}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="comment-text">{comment.text}</p>
+                                                                    {isAdmin && (
+                                                                        <div className="comment-actions">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn-mini"
+                                                                                onClick={() =>
+                                                                                    handleIncrementCommentLikes(post.id, commentId)
+                                                                                }
+                                                                                title="Увеличить счетчик лайков комментария"
+                                                                            >
+                                                                                ♥ +1 к метрике
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn-mini"
+                                                                                onClick={() => startEditComment(post.id, comment)}
+                                                                            >
+                                                                                Изменить
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                className="btn-mini btn-mini-danger"
+                                                                                onClick={() =>
+                                                                                    handleDeleteComment(post.id, commentId)
+                                                                                }
+                                                                            >
+                                                                                Удалить
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
 
-                            <div className="item-actions">
-                                <button
-                                    type="button"
-                                    className="btn btn-action-ghost"
-                                    onClick={() => setEditingPost(post)}
-                                >
-                                    Редактировать
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-action-danger"
-                                    onClick={() => handleDelete(post.id)}
-                                >
-                                    Удалить
-                                </button>
-                            </div>
-                        </article>
-                    ))}
+                                        {isAdmin && (
+                                            <form
+                                                className="comment-form"
+                                                onSubmit={(e) => handleAddComment(e, post.id)}
+                                            >
+                                                <div className="comment-form-row">
+                                                    <input
+                                                        type="text"
+                                                        value={draft.author}
+                                                        onChange={(e) =>
+                                                            handleDraftChange(post.id, 'author', e.target.value)
+                                                        }
+                                                        placeholder="Автор (по умолчанию Аноним)"
+                                                    />
+                                                    <select
+                                                        value={draft.sentiment}
+                                                        onChange={(e) =>
+                                                            handleDraftChange(post.id, 'sentiment', e.target.value)
+                                                        }
+                                                    >
+                                                        {SENTIMENTS.map((s) => (
+                                                            <option key={s} value={s}>
+                                                                {s}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={draft.likes}
+                                                        onChange={(e) =>
+                                                            handleDraftChange(post.id, 'likes', e.target.value)
+                                                        }
+                                                        placeholder="Лайки"
+                                                        title="Количество лайков комментария"
+                                                    />
+                                                </div>
+                                                <div className="comment-submit-row">
+                                                    <input
+                                                        type="text"
+                                                        value={draft.text}
+                                                        onChange={(e) =>
+                                                            handleDraftChange(post.id, 'text', e.target.value)
+                                                        }
+                                                        placeholder="Текст комментария из соцсети..."
+                                                        required
+                                                    />
+                                                    <button type="submit" className="btn btn-lime btn-comment-add">
+                                                        Добавить комментарий
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </div>
+                                )}
+                            </article>
+                        );
+                    })}
                 </div>
             )}
         </div>

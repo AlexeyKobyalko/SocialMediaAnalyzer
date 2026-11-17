@@ -14,6 +14,10 @@ const commentSchema = new mongoose.Schema({
         enum: ['positive', 'neutral', 'negative'],
         default: 'neutral'
     },
+    likes: {
+        type: Number,
+        default: 0
+    },
     createdAt: {
         type: Date,
         default: Date.now

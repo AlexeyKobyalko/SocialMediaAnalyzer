@@ -7,7 +7,21 @@ const EMPTY_FORM = {
     sentiment: 'neutral',
     likes: 0,
     views: 0,
+    tagsInput: '',
 };
+
+function parseTags(rawTags) {
+    const seen = new Set();
+    const result = [];
+    for (const part of rawTags.split(',')) {
+        const cleaned = part.trim().replace(/^#+/, '');
+        if (cleaned && !seen.has(cleaned)) {
+            seen.add(cleaned);
+            result.push(cleaned);
+        }
+    }
+    return result;
+}
 
 function PostForm({ editingPost, onSubmit, onCancel }) {
     const [form, setForm] = useState(EMPTY_FORM);
@@ -20,6 +34,7 @@ function PostForm({ editingPost, onSubmit, onCancel }) {
                 sentiment: editingPost.sentiment,
                 likes: editingPost.likes,
                 views: editingPost.views,
+                tagsInput: Array.isArray(editingPost.tags) ? editingPost.tags.join(', ') : '',
             });
         } else {
             setForm(EMPTY_FORM);
@@ -40,10 +55,12 @@ function PostForm({ editingPost, onSubmit, onCancel }) {
         if (!text) return;
 
         onSubmit({
-            ...form,
             text,
+            platform: form.platform,
+            sentiment: form.sentiment,
             likes: Number(form.likes) || 0,
             views: Number(form.views) || 0,
+            tags: parseTags(form.tagsInput),
         });
 
         if (!editingPost) {
@@ -65,15 +82,15 @@ function PostForm({ editingPost, onSubmit, onCancel }) {
             </div>
 
             <div className="input-group">
-        <textarea
-            name="text"
-            value={form.text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            rows={3}
-            placeholder="Напишите текст поста для анализа..."
-            required
-        />
+                <textarea
+                    name="text"
+                    value={form.text}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    rows={3}
+                    placeholder="Напишите текст поста для анализа..."
+                    required
+                />
             </div>
 
             <div className="form-grid">
@@ -120,6 +137,17 @@ function PostForm({ editingPost, onSubmit, onCancel }) {
                         onChange={handleChange}
                     />
                 </div>
+            </div>
+
+            <div className="input-group form-tags-group">
+                <label>Теги (через запятую)</label>
+                <input
+                    type="text"
+                    name="tagsInput"
+                    value={form.tagsInput}
+                    onChange={handleChange}
+                    placeholder="Например: релиз, аналитика, тренд"
+                />
             </div>
 
             <div className="form-footer">
